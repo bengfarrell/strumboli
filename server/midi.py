@@ -42,6 +42,9 @@ class Midi(EventEmitter):
             
             output_port = None
             if available_outputs:
+                # TODO: This opens the first available port (port 0) which may not be
+                # appropriate for all systems. Consider using Jack MIDI
+                # backend for more control over port connections.
                 self.midi_out.open_port(0)
                 output_port = available_outputs[0]
                 print(f"[MIDI] Using output port 0: {output_port}")

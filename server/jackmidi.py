@@ -71,11 +71,12 @@ class JackMidi(EventEmitter):
             # Create Jack client
             self.jack_client = jack.Client(self.client_name)
             
-            # Register MIDI output port
-            self.midi_out_port = self.jack_client.midi_outports.register('midi_out')
+            # Register MIDI output port with is_physical=True to expose in MIDI menus
+            # Use descriptive name that will appear in port list
+            self.midi_out_port = self.jack_client.midi_outports.register('Strumboli', is_physical=True)
             
-            # Register MIDI input port
-            self.midi_in_port = self.jack_client.midi_inports.register('midi_in')
+            # Register MIDI input port with is_physical=True
+            self.midi_in_port = self.jack_client.midi_inports.register('input', is_physical=True)
             
             # Set up process callback for handling incoming MIDI
             self.jack_client.set_process_callback(self._process_callback)
