@@ -1,0 +1,115 @@
+{
+  "name": "Deco 640",
+  "manufacturer": "XPPen",
+  "model": "Deco 640",
+  "description": "XP-Pen Deco 640 graphics tablet - Zynthian/Raspberry Pi/Linux without manufacturer driver",
+  "vendorId": "0x28bd",
+  "productId": "0x2904",
+  "deviceInfo": {
+    "vendor_id": 10429,
+    "product_id": 10500,
+    "product_string": "Deco 640",
+    "usage": 0,
+    "interfaces": [0, 1]
+  },
+  "reportId": 7,
+  "buttonInterfaceReportId": 6,
+  "capabilities": {
+    "hasButtons": true,
+    "buttonCount": 8,
+    "hasPressure": true,
+    "hasTilt": true,
+    "pressureLevels": 16383,
+    "resolution": {
+      "x": 16000,
+      "y": 9000
+    }
+  },
+  "byteCodeMappings": {
+    "status": {
+      "byteIndex": 1,
+      "type": "code",
+      "values": {
+        "192": {
+          "state": "none"
+        },
+        "160": {
+          "state": "hover"
+        },
+        "162": {
+          "state": "hover",
+          "secondaryButtonPressed": true
+        },
+        "164": {
+          "state": "hover",
+          "primaryButtonPressed": true
+        },
+        "161": {
+          "state": "contact"
+        },
+        "163": {
+          "state": "contact",
+          "secondaryButtonPressed": true
+        },
+        "165": {
+          "state": "contact",
+          "primaryButtonPressed": true
+        },
+        "240": {
+          "state": "buttons"
+        }
+      }
+    },
+    "x": {
+      "byteIndices": [2, 3],
+      "max": 16000,
+      "type": "multi-byte-range"
+    },
+    "y": {
+      "byteIndices": [4, 5],
+      "max": 9000,
+      "type": "multi-byte-range"
+    },
+    "pressure": {
+      "byteIndices": [6, 7],
+      "max": 16383,
+      "type": "multi-byte-range"
+    },
+    "tiltX": {
+      "byteIndex": 8,
+      "positiveMax": 60,
+      "negativeMin": 256,
+      "negativeMax": 196,
+      "type": "bipolar-range"
+    },
+    "tiltY": {
+      "byteIndex": 9,
+      "positiveMax": 60,
+      "negativeMin": 256,
+      "negativeMax": 196,
+      "type": "bipolar-range"
+    },
+    "tabletButtons": {
+      "byteIndex": 2,
+      "buttonCount": 8,
+      "type": "code",
+      "values": {
+        "5": {"button": 1},
+        "8": {"button": 2},
+        "47": {"button": 3},
+        "48": {"button": 4},
+        "86": {"button": 5},
+        "87": {"button": 6},
+        "29": {"button": 7}
+      },
+      "_note": "Linux kernel driver mode - buttons send HID reports on interface 0 (Report ID 6). Button 8 may share code 29 with button 7."
+    }
+  },
+  "_notes": {
+    "productId": "Product ID changes from 0x0914 (with driver) to 0x2904 (without driver)",
+    "resolution": "No-driver mode provides half the resolution: 16000x9000 vs 32000x18000",
+    "interfaces": "Interface 0: buttons (Report ID 6), Interface 1: stylus (Report ID 7)",
+    "buttonBehavior": "Unlike macOS no-driver mode, Linux sends actual HID reports for buttons (not keyboard events)"
+  }
+}
+
