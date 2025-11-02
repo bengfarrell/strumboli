@@ -80,10 +80,48 @@ class SocketServer:
         return self.server
 
     def stop(self):
-        """Stop the WebSocket server"""
-        print('Server stopping')
+        """Stop the WebSocket server (synchronous wrapper)"""
+        if self.loop and self.loop.is_running():
+            # Schedule the async stop in the event loop
+            future = asyncio.run_coroutine_threadsafe(self.async_stop(), self.loop)
+            try:
+                # Wait for it to complete (with timeout)
+                future.result(timeout=3.0)
+            except Exception as e:
+                print(f'Warning during server stop: {e}')
+        else:
+            # If loop not running, just close the server
+            if self.server:
+                self.server.close()
+    
+    async def async_stop(self):
+        """Async stop method - properly closes server and connections"""
+        print('Server stopping...')
+        
+        # Close all active websocket connections
+        if self.sockets:
+            sockets_copy = self.sockets.copy()
+            close_tasks = []
+            for socket in sockets_copy:
+                try:
+                    close_tasks.append(socket.close())
+                except Exception as e:
+                    print(f'Error closing socket: {e}')
+            
+            # Wait for all connections to close
+            if close_tasks:
+                await asyncio.gather(*close_tasks, return_exceptions=True)
+            
+            self.sockets.clear()
+        
+        # Close the server
         if self.server:
             self.server.close()
+            try:
+                await self.server.wait_closed()
+                print('Server closed successfully')
+            except Exception as e:
+                print(f'Error waiting for server close: {e}')
 
     async def send_message(self, message: str):
         """Send message to all connected clients"""

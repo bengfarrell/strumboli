@@ -91,19 +91,47 @@ def cleanup_resources():
             print("Closing socket server...")
             _socket_server.stop()
             _socket_server = None
-            print("Socket server closed successfully")
         except Exception as e:
             print(f"Error closing socket server: {e}")
             _socket_server = None
     
-    # Stop event loop
-    if _event_loop is not None and _event_loop.is_running():
+    # Stop event loop and cancel pending tasks
+    if _event_loop is not None:
         try:
-            print("Stopping event loop...")
-            _event_loop.call_soon_threadsafe(_event_loop.stop)
-            if _loop_thread is not None:
-                _loop_thread.join(timeout=2.0)
-            print("Event loop stopped successfully")
+            if _event_loop.is_running():
+                print("Cancelling pending tasks...")
+                # Cancel all pending tasks in the event loop
+                def cancel_all_tasks():
+                    tasks = [task for task in asyncio.all_tasks(_event_loop) if not task.done()]
+                    for task in tasks:
+                        task.cancel()
+                    return len(tasks)
+                
+                # Schedule task cancellation in the event loop
+                future = asyncio.run_coroutine_threadsafe(
+                    asyncio.sleep(0),  # Dummy coroutine to get into the loop
+                    _event_loop
+                )
+                try:
+                    future.result(timeout=0.5)
+                except:
+                    pass
+                
+                # Now cancel tasks from within the loop's thread
+                _event_loop.call_soon_threadsafe(cancel_all_tasks)
+                
+                # Give tasks a moment to cancel
+                time.sleep(0.2)
+                
+                print("Stopping event loop...")
+                _event_loop.call_soon_threadsafe(_event_loop.stop)
+                
+                if _loop_thread is not None:
+                    _loop_thread.join(timeout=3.0)
+                    if _loop_thread.is_alive():
+                        print("Warning: Event loop thread did not stop cleanly")
+                
+                print("Event loop stopped successfully")
         except Exception as e:
             print(f"Error stopping event loop: {e}")
     
