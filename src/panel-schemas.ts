@@ -53,6 +53,7 @@ export type CustomComponentType =
     | 'stylus-buttons-config'
     | 'tablet-buttons-config'
     | 'websocket-connection'
+    | 'device-connection'
     | 'panel-controls';
 
 export interface CustomComponentConfig {
@@ -105,6 +106,19 @@ export const PANEL_SCHEMAS: Record<string, PanelSchema> = {
         isCustom: true,
         customComponent: {
             type: 'websocket-connection',
+            props: {}
+        }
+    },
+    
+    // Device connection panel (for direct mode)
+    'device-connection': {
+        id: 'device-connection',
+        title: 'Device Connection',
+        hasActiveControl: false,
+        size: 'full',
+        isCustom: true,
+        customComponent: {
+            type: 'device-connection',
             props: {}
         }
     },

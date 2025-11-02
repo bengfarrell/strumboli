@@ -21,6 +21,7 @@
     "format": "prettier \\\\\\\"**/*.{cjs,html,js,json,md,ts}\\\\\\\" --write",
     "dev": "npm run build:watch & wds --watch",
     "socket-dev": "npm run build:watch & SOCKET_MODE=true wds --watch",
+    "hiddev": "npm run build:watch & wds --root-dir . --open direct.html --watch",
     "docs": "npm run docs:build",
     "docs:clean": "rimraf docs",
     "docs:deploy": "npm run docs && node_modules/.bin/gh-pages -d docs",
@@ -34,7 +35,8 @@
     "url": "https://github.com/bengfarrell/midi-strummer.git"
   },
   "dependencies": {
-    "lit": "^3.3.1"
+    "lit": "^3.3.1",
+    "@spectrum-web-components/bundle": "^1.8.0"
   },
   "devDependencies": {
     "@11ty/eleventy": "^3.1.2",

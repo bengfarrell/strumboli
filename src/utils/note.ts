@@ -1,4 +1,51 @@
-export type NoteObject = { notation: string, octave: number, secondary?: boolean };
+export type NoteObject = { 
+    notation: string; 
+    octave: number; 
+    secondary?: boolean;
+};
+
+/**
+ * Transpose a note by a given number of semitones
+ */
+export function transposeNote(note: NoteObject, semitones: number): NoteObject {
+    if (semitones === 0) {
+        return note;
+    }
+
+    // Convert to MIDI note number
+    let noteIndex = Note.sharpNotations.indexOf(note.notation);
+    if (noteIndex === -1) {
+        noteIndex = Note.flatNotations.indexOf(note.notation);
+    }
+    if (noteIndex === -1) {
+        noteIndex = 0;
+    }
+
+    const midiNumber = note.octave * 12 + noteIndex;
+
+    // Add semitones
+    const transposedMidi = midiNumber + semitones;
+
+    // Convert back to notation and octave
+    const newOctave = Math.floor(transposedMidi / 12);
+    const newNoteIndex = transposedMidi % 12;
+
+    // Prefer to use the same notation style (sharp vs flat) as the original
+    let newNotation: string;
+    if (note.notation.includes('#')) {
+        newNotation = Note.sharpNotations[newNoteIndex];
+    } else if (note.notation.includes('b')) {
+        newNotation = Note.flatNotations[newNoteIndex];
+    } else {
+        newNotation = Note.sharpNotations[newNoteIndex];
+    }
+
+    return {
+        notation: newNotation,
+        octave: newOctave,
+        secondary: note.secondary
+    };
+}
 
 /**
  * Note static class
@@ -239,20 +286,113 @@ export const Note = {
     },
 
     fillNoteSpread(notes: NoteObject[], lowerSpread: number = 0, upperSpread: number = 0) {
+        // If no notes provided, return empty array
+        if (!notes || notes.length === 0) {
+            return [];
+        }
+
         const upper = [];
         for (let c = 0; c < upperSpread; c++) {
             const noteIndex = Math.floor(c % notes.length);
             const octaveIncrease = Math.floor(c / notes.length);
-            upper.push({ notation: notes[noteIndex].notation, octave: notes[noteIndex].octave + octaveIncrease + 1 });
+            upper.push({ 
+                notation: notes[noteIndex].notation, 
+                octave: notes[noteIndex].octave + octaveIncrease + 1,
+                secondary: true
+            });
         }
 
         const lower = [];
         for (let c = 0; c < lowerSpread; c++) {
             const noteIndex = Math.floor(c % notes.length);
             const octaveDecrease = Math.floor(c / notes.length);
-            lower.push({ notation: notes[notes.length - 1 - noteIndex].notation, octave: notes[notes.length - 1 - noteIndex].octave - octaveDecrease - 1 });
+            const reverseIndex = notes.length - 1 - noteIndex;
+            lower.push({ 
+                notation: notes[reverseIndex].notation, 
+                octave: notes[reverseIndex].octave - octaveDecrease - 1,
+                secondary: true
+            });
         }
 
         return [ ...lower, ...notes, ...upper ];
+    },
+
+    /**
+     * Parse a chord notation into a list of notes
+     * @param chordNotation Chord notation (e.g., "C", "Gm", "Am7", "Fmaj7", "Ddim", "Esus4")
+     * @param octave Base octave for the root note (default: 4)
+     * @returns Array of NoteObject instances representing the chord
+     */
+    parseChord(chordNotation: string, octave: number = 4): NoteObject[] {
+        // Define chord intervals (semitones from root)
+        const chordIntervals: Record<string, number[]> = {
+            // Triads
+            'maj': [0, 4, 7],
+            'min': [0, 3, 7],
+            'm': [0, 3, 7],
+            'dim': [0, 3, 6],
+            'aug': [0, 4, 8],
+            'sus2': [0, 2, 7],
+            'sus4': [0, 5, 7],
+            '5': [0, 7],
+            
+            // Seventh chords
+            '7': [0, 4, 7, 10],
+            'maj7': [0, 4, 7, 11],
+            'min7': [0, 3, 7, 10],
+            'm7': [0, 3, 7, 10],
+            'dim7': [0, 3, 6, 9],
+            'aug7': [0, 4, 8, 10],
+            'maj9': [0, 4, 7, 11, 14],
+            'min9': [0, 3, 7, 10, 14],
+            'm9': [0, 3, 7, 10, 14],
+            '9': [0, 4, 7, 10, 14],
+            
+            // Extended chords
+            'add9': [0, 4, 7, 14],
+            '6': [0, 4, 7, 9],
+            'min6': [0, 3, 7, 9],
+            'm6': [0, 3, 7, 9],
+        };
+
+        // Parse the root note and chord type
+        let root: string;
+        let chordType: string;
+        
+        if (chordNotation.length >= 2 && (chordNotation[1] === '#' || chordNotation[1] === 'b')) {
+            root = chordNotation.substring(0, 2);
+            chordType = chordNotation.substring(2);
+        } else {
+            root = chordNotation[0];
+            chordType = chordNotation.substring(1);
+        }
+
+        // Default to major triad if no chord type specified
+        if (!chordType) {
+            chordType = 'maj';
+        }
+
+        // Get the intervals for this chord type
+        let intervals = chordIntervals[chordType];
+        if (!intervals) {
+            console.warn(`[NOTE] Unknown chord type '${chordType}', defaulting to major triad`);
+            intervals = chordIntervals['maj'];
+        }
+
+        // Parse the root note
+        const rootNote = this.parseNotation(root + String(octave));
+        const rootIndex = this.indexOfNotation(rootNote.notation);
+
+        // Build the chord notes
+        const chordNotes: NoteObject[] = [];
+        for (const interval of intervals) {
+            const noteIndex = (rootIndex + interval) % 12;
+            const noteOctave = octave + Math.floor((rootIndex + interval) / 12);
+            
+            const notation = this.sharpNotations[noteIndex];
+            chordNotes.push({ notation, octave: noteOctave });
+        }
+
+        return chordNotes;
     }
 };
