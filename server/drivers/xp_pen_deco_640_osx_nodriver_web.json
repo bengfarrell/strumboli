@@ -2,17 +2,22 @@
   "name": "XP-Pen Deco 640",
   "manufacturer": "XP-Pen",
   "model": "Deco 640",
-  "description": "XP-Pen Deco 640 graphics tablet with 8 express keys",
+  "description": "XP-Pen Deco 640 graphics tablet with 8 express keys (macOS without driver - WebHID/Browser)",
   "vendorId": "0x28bd",
-  "productId": "0x0914",
+  "productId": "0x2904",
   "deviceInfo": {
     "vendor_id": 10429,
-    "product_id": 2324,
-    "product": "Deco 640",
-    "usage": 1,
-    "interfaces": [2]
+    "product_id": 10500,
+    "product_string": "Deco 640",
+    "usage_page": 13,
+    "usage": 2,
+    "interfaces": [13, 65290, 1]
   },
   "reportId": 2,
+  "digitizerUsagePage": 13,
+  "buttonInterfaceReportId": 6,
+  "stylusModeStatusByte": 160,
+  "excludedUsagePages": [65290],
   "capabilities": {
     "hasButtons": true,
     "buttonCount": 8,
@@ -20,13 +25,13 @@
     "pressureLevels": 16384,
     "hasTilt": true,
     "resolution": {
-      "x": 32000,
-      "y": 18000
+      "x": 16000,
+      "y": 9000
     }
   },
   "byteCodeMappings": {
     "status": {
-      "byteIndex": 1,
+      "byteIndex": 0,
       "type": "code",
       "values": {
         "192": {
@@ -60,38 +65,47 @@
       }
     },
     "x": {
-      "byteIndices": [2, 3],
-      "max": 32000,
+      "byteIndices": [1, 2],
+      "max": 16000,
       "type": "multi-byte-range"
     },
     "y": {
-      "byteIndices": [4, 5],
-      "max": 18000,
+      "byteIndices": [3, 4],
+      "max": 9000,
       "type": "multi-byte-range"
     },
     "pressure": {
-      "byteIndices": [6, 7],
+      "byteIndices": [5, 6],
       "max": 16383,
       "type": "multi-byte-range"
     },
     "tiltX": {
-      "byteIndex": 8,
+      "byteIndex": 7,
       "positiveMax": 60,
       "negativeMin": 256,
       "negativeMax": 196,
       "type": "bipolar-range"
     },
     "tiltY": {
-      "byteIndex": 9,
+      "byteIndex": 8,
       "positiveMax": 60,
       "negativeMin": 256,
       "negativeMax": 196,
       "type": "bipolar-range"
     },
     "tabletButtons": {
-      "byteIndex": 2,
+      "type": "keyboard-events",
       "buttonCount": 8,
-      "type": "bit-flags"
+      "keyMappings": {
+        "1": { "key": "b", "code": "KeyB" },
+        "2": { "key": "e", "code": "KeyE" },
+        "3": { "key": "[", "code": "BracketLeft" },
+        "4": { "key": "]", "code": "BracketRight" },
+        "5": { "key": "-", "code": "NumpadSubtract", "ctrlKey": true },
+        "6": { "key": "+", "code": "NumpadAdd", "ctrlKey": true },
+        "7": { "key": "z", "code": "KeyZ", "ctrlKey": true },
+        "8": { "key": "Z", "code": "KeyZ", "ctrlKey": true, "shiftKey": true }
+      }
     }
   }
 }

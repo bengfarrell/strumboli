@@ -19,12 +19,14 @@ from note import Note
 from websocketserver import SocketServer
 from webserver import WebServer
 from hidreader import HIDReader
+from keyboardlistener import KeyboardListener
 from datahelpers import apply_effect
 from config import Config
 from actions import Actions
 
 # Global references for cleanup
 _hid_readers = []  # Multiple readers for multiple interfaces (stylus, buttons, etc.)
+_keyboard_listener = None  # Keyboard listener for no-driver mode
 _midi = None
 _socket_server = None
 _web_server = None
@@ -39,11 +41,20 @@ _tablet_device_info = None
 
 def cleanup_resources():
     """Clean up device and MIDI resources"""
-    global _hid_readers, _midi, _socket_server, _web_server, _event_loop, _loop_thread, _hotplug_monitor, _tablet_connected, _tablet_device_info
+    global _hid_readers, _keyboard_listener, _midi, _socket_server, _web_server, _event_loop, _loop_thread, _hotplug_monitor, _tablet_connected, _tablet_device_info
     
     print("\nCleaning up resources...")
     
-    # Stop hotplug monitor first
+    # Stop keyboard listener first
+    if _keyboard_listener is not None:
+        try:
+            _keyboard_listener.stop()
+            _keyboard_listener = None
+        except Exception as e:
+            print(f"Error stopping keyboard listener: {e}")
+            _keyboard_listener = None
+    
+    # Stop hotplug monitor
     if _hotplug_monitor is not None:
         try:
             _hotplug_monitor.stop()
@@ -648,9 +659,55 @@ def create_hid_data_handler(cfg: Config, midi: Union[Midi, JackMidi], socket_ser
     return handle_hid_data
 
 
+def create_keyboard_button_handler(cfg: Config, actions: Actions, socket_server: Optional[SocketServer] = None):
+    """
+    Create a callback for keyboard button events (no-driver mode)
+    
+    Args:
+        cfg: Configuration instance
+        actions: Actions instance for executing button actions
+        socket_server: Optional socket server for broadcasting
+        
+    Returns:
+        Callback function(button_num: int, pressed: bool)
+    """
+    # Track tablet button states
+    tablet_button_state = {f'button{i}': False for i in range(1, 9)}
+    
+    def handle_button(button_num: int, pressed: bool):
+        """Handle keyboard button press/release"""
+        button_key = f'button{button_num}'
+        
+        # Get tablet buttons configuration
+        tablet_buttons_cfg = cfg.get('tabletButtons', {})
+        
+        if pressed and not tablet_button_state.get(button_key, False):
+            # Button just pressed - execute configured action
+            action = tablet_buttons_cfg.get(str(button_num))
+            if action:
+                actions.execute(action, context={'button': f'Tablet{button_num}'})
+            
+            # Broadcast button press to WebSocket
+            broadcast_to_socket(socket_server, 'tablet_button', {
+                'button': button_num - 1,  # 0-indexed for frontend
+                'pressed': True
+            })
+        elif not pressed and tablet_button_state.get(button_key, False):
+            # Button released
+            broadcast_to_socket(socket_server, 'tablet_button', {
+                'button': button_num - 1,  # 0-indexed for frontend
+                'pressed': False
+            })
+        
+        # Update button state
+        tablet_button_state[button_key] = pressed
+    
+    return handle_button
+
+
 def main():
     """Main application entry point"""
-    global _hid_readers, _midi, _socket_server, _web_server, _event_loop, _loop_thread, _hotplug_monitor, _tablet_connected, _tablet_device_info
+    global _hid_readers, _keyboard_listener, _midi, _socket_server, _web_server, _event_loop, _loop_thread, _hotplug_monitor, _tablet_connected, _tablet_device_info
     
     # Register cleanup function to run on exit
     atexit.register(cleanup_resources)
@@ -701,7 +758,7 @@ def main():
     # Create callbacks for hotplug device connection/disconnection
     def on_device_disconnected():
         """Handle device disconnection from hotplug monitor"""
-        global _hid_readers, _tablet_connected, _tablet_device_info
+        global _hid_readers, _keyboard_listener, _tablet_connected, _tablet_device_info
         
         print("\n[Hotplug] Device disconnected")
         
@@ -715,6 +772,14 @@ def main():
             'device': None
         })
         
+        # Stop keyboard listener if running
+        if _keyboard_listener is not None:
+            try:
+                _keyboard_listener.stop()
+                _keyboard_listener = None
+            except Exception as e:
+                print(f"[Hotplug] Error stopping keyboard listener: {e}")
+        
         # Stop all HID readers if running
         if _hid_readers:
             for reader in _hid_readers:
@@ -727,7 +792,7 @@ def main():
     
     def on_device_plugged_in(driver_name: str, driver_config: Dict[str, Any], device):
         """Handle device connection from hotplug monitor"""
-        global _hid_readers, _tablet_connected, _tablet_device_info
+        global _hid_readers, _keyboard_listener, _tablet_connected, _tablet_device_info
         
         # Close the device opened by hotplug monitor - we'll reopen all interfaces properly
         try:
@@ -792,6 +857,51 @@ def main():
             return
         
         print(f"[Hotplug] Opened {len(devices)} interface(s)")
+        
+        # Check if we need keyboard listener for tablet buttons (no-driver mode)
+        tablet_buttons_mapping = tablet_config.get('byteCodeMappings', {}).get('tabletButtons', {})
+        if tablet_buttons_mapping.get('type') == 'keyboard-events':
+            print("[Hotplug/Keyboard] Device uses keyboard events for buttons - setting up keyboard listener")
+            key_mappings = tablet_buttons_mapping.get('keyMappings', {})
+            if key_mappings:
+                try:
+                    # Stop existing keyboard listener if any
+                    if _keyboard_listener is not None:
+                        _keyboard_listener.stop()
+                        _keyboard_listener = None
+                    
+                    # Create actions instance for button handling
+                    from actions import Actions
+                    actions = Actions(cfg)
+                    
+                    # Listen for config changes from actions
+                    def on_action_config_changed():
+                        if _socket_server is not None:
+                            try:
+                                config_data = {
+                                    'type': 'config',
+                                    'config': cfg.to_dict()
+                                }
+                                message = json.dumps(config_data)
+                                _socket_server.send_message_sync(message)
+                            except Exception as e:
+                                print(f"[ACTIONS] Error broadcasting config: {e}")
+                    
+                    actions.on('config_changed', on_action_config_changed)
+                    
+                    # Create keyboard button handler
+                    button_handler = create_keyboard_button_handler(cfg, actions, _socket_server)
+                    
+                    # Create and start keyboard listener
+                    _keyboard_listener = KeyboardListener(key_mappings, button_handler)
+                    _keyboard_listener.start()
+                    print("[Hotplug/Keyboard] Keyboard listener started successfully")
+                except Exception as e:
+                    print(f"[Hotplug/Keyboard] Error setting up keyboard listener: {e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print("[Hotplug/Keyboard] No key mappings found in device config")
         
         # Create HID readers for all interfaces
         data_handler = create_hid_data_handler(cfg, _midi, _socket_server)
@@ -900,6 +1010,46 @@ def main():
                 print("[Hotplug] Monitor started to watch for disconnections")
         except Exception as e:
             print(f"[Hotplug] Could not start hotplug monitor: {e}")
+        
+        # Check if we need keyboard listener for tablet buttons (no-driver mode)
+        tablet_buttons_mapping = cfg.mappings.get('tabletButtons', {})
+        if tablet_buttons_mapping.get('type') == 'keyboard-events':
+            print("[Keyboard] Device uses keyboard events for buttons - setting up keyboard listener")
+            key_mappings = tablet_buttons_mapping.get('keyMappings', {})
+            if key_mappings:
+                try:
+                    # Create actions instance for button handling
+                    from actions import Actions
+                    actions = Actions(cfg)
+                    
+                    # Listen for config changes from actions
+                    def on_action_config_changed():
+                        if _socket_server is not None:
+                            try:
+                                config_data = {
+                                    'type': 'config',
+                                    'config': cfg.to_dict()
+                                }
+                                message = json.dumps(config_data)
+                                _socket_server.send_message_sync(message)
+                            except Exception as e:
+                                print(f"[ACTIONS] Error broadcasting config: {e}")
+                    
+                    actions.on('config_changed', on_action_config_changed)
+                    
+                    # Create keyboard button handler
+                    button_handler = create_keyboard_button_handler(cfg, actions, _socket_server)
+                    
+                    # Create and start keyboard listener
+                    _keyboard_listener = KeyboardListener(key_mappings, button_handler)
+                    _keyboard_listener.start()
+                    print("[Keyboard] Keyboard listener started successfully")
+                except Exception as e:
+                    print(f"[Keyboard] Error setting up keyboard listener: {e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print("[Keyboard] No key mappings found in device config")
         
         # Create HID readers for all interfaces (buttons may be on separate interface)
         data_handler = create_hid_data_handler(cfg, _midi, _socket_server)

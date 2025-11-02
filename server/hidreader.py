@@ -97,6 +97,10 @@ class HIDReader:
                                     result[f'button{i}'] = (i == button_num)
                 continue
             
+            # Skip keyboard-events type - these are handled by keyboard listener, not HID
+            if key == 'tabletButtons' and mapping_type == 'keyboard-events':
+                continue
+            
             # Skip button parsing if not in button mode (unless we're on button-only interface)
             if mapping_type == 'bit-flags' and device_state != 'buttons' and not is_button_interface:
                 continue

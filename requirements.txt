@@ -7,6 +7,9 @@ JACK-Client>=0.5.0
 # HID device support (equivalent to node-hid)
 hidapi>=0.14.0
 
+# Keyboard event monitoring (for no-driver mode on macOS)
+pynput>=1.7.0
+
 # WebSocket server support (equivalent to ws)
 websockets>=11.0.0
 
