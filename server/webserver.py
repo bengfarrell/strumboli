@@ -20,6 +20,11 @@ class StaticFileHandler(SimpleHTTPRequestHandler):
             print(f"[HTTP] {args[0]} - {self.path} - Status: {args[1]}")
 
 
+class ReuseAddrHTTPServer(HTTPServer):
+    """HTTPServer that allows address reuse"""
+    allow_reuse_address = True
+
+
 class WebServer:
     """Simple HTTP server for serving static files"""
     
@@ -58,7 +63,8 @@ class WebServer:
                     **kwargs
                 )
                 
-                self.server = HTTPServer(('', self.port), handler)
+                # Create server with address reuse enabled
+                self.server = ReuseAddrHTTPServer(('', self.port), handler)
                 print(f"[HTTP] Web server started on http://localhost:{self.port}")
                 print(f"[HTTP] Serving files from: {self.directory}")
                 self.server.serve_forever()
