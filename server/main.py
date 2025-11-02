@@ -326,7 +326,7 @@ def setup_midi_and_strummer(cfg: Config, socket_server: Optional[SocketServer] =
     
     # Use Pythonic event handler registration
     midi.on(NOTE_EVENT, handler)
-    midi.refresh_connection(cfg.midi_input_id)
+    midi.refresh_connection(cfg.midi_input_id, cfg.midi_output_id)
     
     return midi
 

@@ -31,7 +31,7 @@ class Midi(EventEmitter):
         """Get current notes"""
         return self._notes
 
-    def refresh_connection(self, midi_input_id: Optional[str] = None) -> None:
+    def refresh_connection(self, midi_input_id: Optional[str] = None, midi_output_id: Optional[str] = None) -> None:
         """Refresh MIDI connections"""
         try:
             # Initialize MIDI output
@@ -42,12 +42,14 @@ class Midi(EventEmitter):
             
             output_port = None
             if available_outputs:
-                # TODO: This opens the first available port (port 0) which may not be
-                # appropriate for all systems. Consider using Jack MIDI
-                # backend for more control over port connections.
-                self.midi_out.open_port(0)
-                output_port = available_outputs[0]
-                print(f"[MIDI] Using output port 0: {output_port}")
+                # Resolve output port from config or default to 0
+                output_port_index = 0
+                if midi_output_id is not None:
+                    output_port_index = self._resolve_output_id(midi_output_id, available_outputs)
+                
+                self.midi_out.open_port(output_port_index)
+                output_port = available_outputs[output_port_index]
+                print(f"[MIDI] Using output port {output_port_index}: {output_port}")
             else:
                 print("WARNING: No MIDI output ports available")
             
@@ -112,6 +114,24 @@ class Midi(EventEmitter):
             
             print(f"WARNING: MIDI input port '{midi_input_id}' not found, using port 0")
             self._current_input_id = "0"
+            return 0
+    
+    def _resolve_output_id(self, midi_output_id: str, available_outputs: List[str]) -> int:
+        """Resolve output ID to port index."""
+        try:
+            port_index = int(midi_output_id)
+            if 0 <= port_index < len(available_outputs):
+                return port_index
+            else:
+                print(f"WARNING: Invalid MIDI output index {midi_output_id}, using port 0")
+                return 0
+        except ValueError:
+            # Try to find port by name
+            for idx, port_name in enumerate(available_outputs):
+                if port_name == midi_output_id or midi_output_id in port_name:
+                    return idx
+            
+            print(f"WARNING: MIDI output port '{midi_output_id}' not found, using port 0")
             return 0
 
     def _midi_callback(self, event, data=None) -> None:
