@@ -6,6 +6,7 @@ Run this on your Zynthian to verify port properties.
 
 import sys
 import time
+import subprocess
 
 try:
     import jack
@@ -15,11 +16,37 @@ except ImportError:
     sys.exit(1)
 
 
+def run_command(cmd, description):
+    """Run a shell command and display output"""
+    print(f"   {description}")
+    print(f"   Command: {cmd}")
+    print()
+    try:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+        if result.stdout:
+            for line in result.stdout.strip().split('\n'):
+                print(f"   {line}")
+        if result.stderr:
+            print(f"   ERROR: {result.stderr.strip()}")
+        if not result.stdout and not result.stderr:
+            print("   (no output)")
+    except subprocess.TimeoutExpired:
+        print("   (command timeout)")
+    except Exception as e:
+        print(f"   (error running command: {e})")
+    print()
+
+
 def main():
     print("=" * 60)
     print("Jack MIDI Port Diagnostic Tool")
     print("=" * 60)
     print()
+    
+    # Check if Jack is running
+    print("0. Checking if Jack is running...")
+    print()
+    run_command("jack_lsp | head -5", "First few Jack ports (verifies Jack is running):")
     
     try:
         # Create test client
@@ -89,22 +116,28 @@ def main():
         print()
         
         # Command-line verification
-        print("7. Command-line verification commands:")
+        print("7. Command-line verification:")
         print()
-        print("   Run these commands in another terminal to verify:")
-        print()
-        print("   # List all Jack ports")
-        print("   jack_lsp")
-        print()
-        print("   # List ports with properties (look for 'physical' flag)")
-        print("   jack_lsp -p")
-        print()
-        print("   # List MIDI ports only")
-        print("   jack_lsp -t | grep -i midi")
-        print()
-        print("   # Show our specific ports")
-        print(f"   jack_lsp | grep {client.name}")
-        print()
+        
+        run_command(
+            f"jack_lsp | grep {client.name}",
+            "Our test ports in Jack:"
+        )
+        
+        run_command(
+            f"jack_lsp -p | grep -A 3 '{client.name}'",
+            "Our test port properties (look for 'physical' in properties line):"
+        )
+        
+        run_command(
+            "jack_lsp -t | grep -i midi | head -20",
+            "Sample of MIDI ports in Jack:"
+        )
+        
+        run_command(
+            "ps aux | grep -i zynthian | grep -v grep | head -5",
+            "Zynthian processes:"
+        )
         
         # Keep running
         print("8. Test client is now running...")
@@ -125,15 +158,32 @@ def main():
         return 1
     finally:
         try:
+            client_name = client.name
             client.deactivate()
             client.close()
             print("✓ Client closed")
-        except:
-            pass
+            print()
+            
+            # Verify ports are gone
+            print("9. Verifying cleanup:")
+            print()
+            run_command(
+                f"jack_lsp | grep {client_name}",
+                f"Checking if test ports are removed (should be empty):"
+            )
+        except Exception as e:
+            print(f"Cleanup warning: {e}")
     
     print()
     print("=" * 60)
     print("Test Complete")
+    print()
+    print("SUMMARY:")
+    print("- If ports showed 'is_physical: True' above, Python is working correctly")
+    print("- If 'jack_lsp -p' showed 'physical' in properties, Jack sees them correctly")
+    print("- If ports appeared in Zynthian UI, everything is working!")
+    print("- If ports did NOT appear in Zynthian UI despite being physical, there may be")
+    print("  a Zynthian configuration issue or the webconf needs restarting")
     print("=" * 60)
     return 0
 
