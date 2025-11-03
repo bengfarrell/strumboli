@@ -7,6 +7,7 @@ import time
 import atexit
 import asyncio
 import math
+import argparse
 from typing import Dict, Any, Union, Optional, Callable
 from dataclasses import asdict
 
@@ -208,8 +209,22 @@ def find_settings_file() -> str:
     return None
 
 
-def load_config() -> Config:
-    """Load configuration from settings.json with fallback to defaults"""
+def load_config(settings_file: Optional[str] = None) -> Config:
+    """
+    Load configuration from settings file with fallback to defaults
+    
+    Args:
+        settings_file: Optional path to settings file. If None, searches default locations.
+    """
+    if settings_file is not None:
+        # Use the explicitly provided settings file
+        if not os.path.exists(settings_file):
+            print(f"ERROR: Settings file not found: {settings_file}")
+            sys.exit(1)
+        print(f"Loading configuration from: {settings_file}")
+        return Config.from_file(settings_file)
+    
+    # No explicit file provided, search default locations
     settings_path = find_settings_file()
     
     if settings_path is None:
@@ -299,6 +314,8 @@ def setup_midi_and_strummer(cfg: Config, socket_server: Optional[SocketServer] =
     # Setup MIDI - choose backend based on configuration
     midi_backend = cfg.midi_output_backend
     midi_channel = cfg.get('strumming', {}).get('midiChannel')
+    
+    print(f"[MIDI] Configuration: backend='{midi_backend}', jack_client_name='{cfg.jack_client_name}'")
     
     if midi_backend == 'jack':
         print(f"[MIDI] Using Jack MIDI backend (client: {cfg.jack_client_name})")
@@ -746,11 +763,31 @@ def main():
     """Main application entry point"""
     global _hid_readers, _keyboard_listener, _midi, _socket_server, _web_server, _event_loop, _loop_thread, _hotplug_monitor, _tablet_connected, _tablet_device_info
     
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description='Strumboli - MIDI Strummer Server',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python main.py                                    # Use default settings.json
+  python main.py -s settings-zynthian-example.json  # Use specific settings file
+  python main.py --settings ~/my-settings.json      # Use settings from home directory
+        """
+    )
+    parser.add_argument(
+        '-s', '--settings',
+        type=str,
+        default=None,
+        metavar='FILE',
+        help='Path to settings JSON file (default: search for settings.json in standard locations)'
+    )
+    args = parser.parse_args()
+    
     # Register cleanup function to run on exit
     atexit.register(cleanup_resources)
     
     # Load configuration
-    cfg = load_config()
+    cfg = load_config(args.settings)
     
     # Optionally start web server
     if cfg.use_web_server:
