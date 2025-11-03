@@ -65,8 +65,8 @@ class JackMidi(EventEmitter):
         """Get current notes"""
         return self._notes
     
-    def refresh_connection(self, midi_input_id: Optional[str] = None) -> None:
-        """Initialize Jack MIDI connections"""
+    def refresh_connection(self, midi_input_id: Optional[str] = None, midi_output_id: Optional[str] = None) -> None:
+        """Initialize Jack MIDI connections (midi_output_id is ignored for Jack)"""
         try:
             # Create Jack client
             self.jack_client = jack.Client(self.client_name)
