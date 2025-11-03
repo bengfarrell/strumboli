@@ -362,13 +362,21 @@ def update_config(cfg: Config, updates: Dict[str, Any], socket_server: Optional[
     Update configuration with key-value pairs from incoming messages.
     Supports nested keys using dot notation (e.g., "device.product").
     """
+    global _midi
+    
     # Track if note spread changed
     note_spread_changed = False
+    # Track if MIDI channel changed
+    midi_channel_changed = False
     
     for key, value in updates.items():
         # Check if this is a note spread update
         if key in ['strumming.upperNoteSpread', 'strumming.lowerNoteSpread', 'upperNoteSpread', 'lowerNoteSpread']:
             note_spread_changed = True
+        
+        # Check if MIDI channel changed
+        if key in ['strumming.midiChannel', 'midiChannel']:
+            midi_channel_changed = True
         
         # Use Config.set() method which handles dot notation
         cfg.set(key, value)
@@ -393,6 +401,11 @@ def update_config(cfg: Config, updates: Dict[str, Any], socket_server: Optional[
             )
             print(f'[CONFIG] Recalculated strummer notes with new spreads: {len(strummer.notes)} notes')
             # Note: broadcast happens automatically via strummer's notes_changed event
+    
+    # If MIDI channel changed, update the MIDI instance
+    if midi_channel_changed and _midi is not None:
+        new_channel = cfg.get('strumming', {}).get('midiChannel')
+        _midi.set_midi_channel(new_channel)
     
     # Broadcast the updated config to all WebSocket clients
     if socket_server is not None:

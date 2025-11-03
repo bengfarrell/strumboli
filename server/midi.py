@@ -31,6 +31,19 @@ class Midi(EventEmitter):
         """Get current notes"""
         return self._notes
 
+    def set_midi_channel(self, channel: Optional[int]) -> None:
+        """
+        Update the MIDI output channel dynamically.
+        
+        Args:
+            channel: MIDI channel (1-16), or None to send on all channels
+        """
+        self._midi_strum_channel = channel
+        if channel is not None:
+            print(f"[MIDI] MIDI channel set to: {channel}")
+        else:
+            print(f"[MIDI] MIDI channel set to: ALL (omni)")
+
     def refresh_connection(self, midi_input_id: Optional[str] = None, midi_output_id: Optional[str] = None) -> None:
         """Refresh MIDI connections"""
         try:
