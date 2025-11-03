@@ -1,0 +1,67 @@
+{
+  "startupConfiguration": {
+    "midiOutputBackend": "jack",
+    "jackClientName": "midi_strummer",
+    "drawingTablet": "auto-detect",
+    "useSocketServer": true,
+    "socketServerPort": 8080,
+    "midiInputId": null
+  },
+  "noteDuration": {
+    "min": 0.15,
+    "max": 1.5,
+    "multiplier": 1.0,
+    "curve": 1.0,
+    "spread": "inverse",
+    "control": "tiltXY",
+    "default": 1.0
+  },
+  "pitchBend": {
+    "min": -1.0,
+    "max": 1.0,
+    "multiplier": 1.0,
+    "curve": 4.0,
+    "spread": "central",
+    "control": "yaxis",
+    "default": 0.0
+  },
+  "noteVelocity": {
+    "min": 0,
+    "max": 127,
+    "multiplier": 1.0,
+    "curve": 4.0,
+    "spread": "direct",
+    "control": "pressure",
+    "default": 64
+  },
+  "strumming": {
+    "pluckVelocityScale": 4.0,
+    "pressureThreshold": 0.1,
+    "midiChannel": null,
+    "initialNotes": ["C4", "E4", "G4"],
+    "upperNoteSpread": 3,
+    "lowerNoteSpread": 3
+  },
+  "noteRepeater": {
+    "active": false,
+    "pressureMultiplier": 1.0,
+    "frequencyMultiplier": 1.0
+  },
+  "transpose": {
+    "active": false,
+    "semitones": 12
+  },
+  "stylusButtons": {
+    "active": true,
+    "primaryButtonAction": "toggle-transpose",
+    "secondaryButtonAction": "toggle-repeater"
+  },
+  "strumRelease": {
+    "active": false,
+    "midiNote": 38,
+    "midiChannel": null,
+    "maxDuration": 0.25,
+    "velocityMultiplier": 1.0
+  }
+}
+
