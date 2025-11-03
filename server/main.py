@@ -19,10 +19,19 @@ from note import Note
 from websocketserver import SocketServer
 from webserver import WebServer
 from hidreader import HIDReader
-from keyboardlistener import KeyboardListener
 from datahelpers import apply_effect
 from config import Config
 from actions import Actions
+
+# Conditionally import KeyboardListener (requires X display, not available on all systems)
+try:
+    from keyboardlistener import KeyboardListener
+    KEYBOARD_LISTENER_AVAILABLE = True
+except ImportError as e:
+    print(f"[Keyboard] Warning: KeyboardListener not available ({e})")
+    print("[Keyboard] Tablet button keyboard events will not be supported")
+    KeyboardListener = None
+    KEYBOARD_LISTENER_AVAILABLE = False
 
 # Global references for cleanup
 _hid_readers = []  # Multiple readers for multiple interfaces (stylus, buttons, etc.)
@@ -890,46 +899,51 @@ def main():
         tablet_buttons_mapping = tablet_config.get('byteCodeMappings', {}).get('tabletButtons', {})
         if tablet_buttons_mapping.get('type') == 'keyboard-events':
             print("[Hotplug/Keyboard] Device uses keyboard events for buttons - setting up keyboard listener")
-            key_mappings = tablet_buttons_mapping.get('keyMappings', {})
-            if key_mappings:
-                try:
-                    # Stop existing keyboard listener if any
-                    if _keyboard_listener is not None:
-                        _keyboard_listener.stop()
-                        _keyboard_listener = None
-                    
-                    # Create actions instance for button handling
-                    from actions import Actions
-                    actions = Actions(cfg)
-                    
-                    # Listen for config changes from actions
-                    def on_action_config_changed():
-                        if _socket_server is not None:
-                            try:
-                                config_data = {
-                                    'type': 'config',
-                                    'config': cfg.to_dict()
-                                }
-                                message = json.dumps(config_data)
-                                _socket_server.send_message_sync(message)
-                            except Exception as e:
-                                print(f"[ACTIONS] Error broadcasting config: {e}")
-                    
-                    actions.on('config_changed', on_action_config_changed)
-                    
-                    # Create keyboard button handler
-                    button_handler = create_keyboard_button_handler(cfg, actions, _socket_server)
-                    
-                    # Create and start keyboard listener
-                    _keyboard_listener = KeyboardListener(key_mappings, button_handler)
-                    _keyboard_listener.start()
-                    print("[Hotplug/Keyboard] Keyboard listener started successfully")
-                except Exception as e:
-                    print(f"[Hotplug/Keyboard] Error setting up keyboard listener: {e}")
-                    import traceback
-                    traceback.print_exc()
+            
+            if not KEYBOARD_LISTENER_AVAILABLE:
+                print("[Hotplug/Keyboard] ERROR: KeyboardListener not available on this system")
+                print("[Hotplug/Keyboard] Tablet button events will not work")
             else:
-                print("[Hotplug/Keyboard] No key mappings found in device config")
+                key_mappings = tablet_buttons_mapping.get('keyMappings', {})
+                if key_mappings:
+                    try:
+                        # Stop existing keyboard listener if any
+                        if _keyboard_listener is not None:
+                            _keyboard_listener.stop()
+                            _keyboard_listener = None
+                        
+                        # Create actions instance for button handling
+                        from actions import Actions
+                        actions = Actions(cfg)
+                        
+                        # Listen for config changes from actions
+                        def on_action_config_changed():
+                            if _socket_server is not None:
+                                try:
+                                    config_data = {
+                                        'type': 'config',
+                                        'config': cfg.to_dict()
+                                    }
+                                    message = json.dumps(config_data)
+                                    _socket_server.send_message_sync(message)
+                                except Exception as e:
+                                    print(f"[ACTIONS] Error broadcasting config: {e}")
+                        
+                        actions.on('config_changed', on_action_config_changed)
+                        
+                        # Create keyboard button handler
+                        button_handler = create_keyboard_button_handler(cfg, actions, _socket_server)
+                        
+                        # Create and start keyboard listener
+                        _keyboard_listener = KeyboardListener(key_mappings, button_handler)
+                        _keyboard_listener.start()
+                        print("[Hotplug/Keyboard] Keyboard listener started successfully")
+                    except Exception as e:
+                        print(f"[Hotplug/Keyboard] Error setting up keyboard listener: {e}")
+                        import traceback
+                        traceback.print_exc()
+                else:
+                    print("[Hotplug/Keyboard] No key mappings found in device config")
         
         # Create HID readers for all interfaces
         data_handler = create_hid_data_handler(cfg, _midi, _socket_server)
@@ -1043,41 +1057,46 @@ def main():
         tablet_buttons_mapping = cfg.mappings.get('tabletButtons', {})
         if tablet_buttons_mapping.get('type') == 'keyboard-events':
             print("[Keyboard] Device uses keyboard events for buttons - setting up keyboard listener")
-            key_mappings = tablet_buttons_mapping.get('keyMappings', {})
-            if key_mappings:
-                try:
-                    # Create actions instance for button handling
-                    from actions import Actions
-                    actions = Actions(cfg)
-                    
-                    # Listen for config changes from actions
-                    def on_action_config_changed():
-                        if _socket_server is not None:
-                            try:
-                                config_data = {
-                                    'type': 'config',
-                                    'config': cfg.to_dict()
-                                }
-                                message = json.dumps(config_data)
-                                _socket_server.send_message_sync(message)
-                            except Exception as e:
-                                print(f"[ACTIONS] Error broadcasting config: {e}")
-                    
-                    actions.on('config_changed', on_action_config_changed)
-                    
-                    # Create keyboard button handler
-                    button_handler = create_keyboard_button_handler(cfg, actions, _socket_server)
-                    
-                    # Create and start keyboard listener
-                    _keyboard_listener = KeyboardListener(key_mappings, button_handler)
-                    _keyboard_listener.start()
-                    print("[Keyboard] Keyboard listener started successfully")
-                except Exception as e:
-                    print(f"[Keyboard] Error setting up keyboard listener: {e}")
-                    import traceback
-                    traceback.print_exc()
+            
+            if not KEYBOARD_LISTENER_AVAILABLE:
+                print("[Keyboard] ERROR: KeyboardListener not available on this system")
+                print("[Keyboard] Tablet button events will not work")
             else:
-                print("[Keyboard] No key mappings found in device config")
+                key_mappings = tablet_buttons_mapping.get('keyMappings', {})
+                if key_mappings:
+                    try:
+                        # Create actions instance for button handling
+                        from actions import Actions
+                        actions = Actions(cfg)
+                        
+                        # Listen for config changes from actions
+                        def on_action_config_changed():
+                            if _socket_server is not None:
+                                try:
+                                    config_data = {
+                                        'type': 'config',
+                                        'config': cfg.to_dict()
+                                    }
+                                    message = json.dumps(config_data)
+                                    _socket_server.send_message_sync(message)
+                                except Exception as e:
+                                    print(f"[ACTIONS] Error broadcasting config: {e}")
+                        
+                        actions.on('config_changed', on_action_config_changed)
+                        
+                        # Create keyboard button handler
+                        button_handler = create_keyboard_button_handler(cfg, actions, _socket_server)
+                        
+                        # Create and start keyboard listener
+                        _keyboard_listener = KeyboardListener(key_mappings, button_handler)
+                        _keyboard_listener.start()
+                        print("[Keyboard] Keyboard listener started successfully")
+                    except Exception as e:
+                        print(f"[Keyboard] Error setting up keyboard listener: {e}")
+                        import traceback
+                        traceback.print_exc()
+                else:
+                    print("[Keyboard] No key mappings found in device config")
         
         # Create HID readers for all interfaces (buttons may be on separate interface)
         data_handler = create_hid_data_handler(cfg, _midi, _socket_server)
