@@ -61,7 +61,9 @@ class HIDReader:
         device_state = None
         for key, mapping in self.config.mappings.items():
             if mapping.get('type') == 'code':
-                byte_index = mapping.get('byteIndex', 0)
+                # byteIndex is now always a list (even for single-byte)
+                byte_index_list = mapping.get('byteIndex', [0])
+                byte_index = byte_index_list[0] if isinstance(byte_index_list, list) else byte_index_list
                 if byte_index < len(data_list):
                     code_result = parse_code(data_list, byte_index, mapping.get('values', []))
                     if isinstance(code_result, dict):
@@ -74,7 +76,10 @@ class HIDReader:
         # Process remaining mappings based on device state
         for key, mapping in self.config.mappings.items():
             mapping_type = mapping.get('type')
-            byte_index = mapping.get('byteIndex', 0)
+            # byteIndex is now always a list (even for single-byte)
+            byte_index_list = mapping.get('byteIndex', [0])
+            byte_index_list = byte_index_list if isinstance(byte_index_list, list) else [byte_index_list]
+            first_byte_index = byte_index_list[0]
             
             # Skip if already processed (status/code), unless it's tabletButtons with code type
             if mapping_type == 'code' and key != 'tabletButtons':
@@ -85,8 +90,8 @@ class HIDReader:
                 # ONLY process button codes from the button interface (Report ID 6)
                 # This prevents false button detections from stylus coordinate data
                 if is_button_interface:
-                    if byte_index < len(data_list):
-                        byte_value = str(data_list[byte_index])
+                    if first_byte_index < len(data_list):
+                        byte_value = str(data_list[first_byte_index])
                         values_map = mapping.get('values', {})
                         if byte_value in values_map:
                             button_num = values_map[byte_value].get('button')
@@ -109,24 +114,23 @@ class HIDReader:
             if (is_button_interface or device_state == 'buttons') and key in ['x', 'y', 'pressure', 'tiltX', 'tiltY']:
                 continue
             
-            # Skip validation for multi-byte-range as it uses byteIndices instead
-            if mapping_type != 'multi-byte-range' and byte_index >= len(data_list):
+            # Skip validation - check if first byte index is within bounds
+            if first_byte_index >= len(data_list):
                 continue
                 
             if mapping_type == 'range':
                 result[key] = parse_range_data(
                     data_list, 
-                    byte_index, 
+                    first_byte_index, 
                     mapping.get('min', 0), 
                     mapping.get('max', 0)
                 )
             elif mapping_type == 'multi-byte-range':
-                byte_indices = mapping.get('byteIndices', [])
                 # Validate all indices are within bounds
-                if all(idx < len(data_list) for idx in byte_indices):
+                if all(idx < len(data_list) for idx in byte_index_list):
                     result[key] = parse_multi_byte_range_data(
                         data_list,
-                        byte_indices,
+                        byte_index_list,
                         mapping.get('min', 0),
                         mapping.get('max', 0),
                         debug_name=key  # Pass the key name for debug logging
@@ -134,7 +138,7 @@ class HIDReader:
             elif mapping_type == 'bipolar-range':
                 result[key] = parse_bipolar_range_data(
                     data_list,
-                    byte_index,
+                    first_byte_index,
                     mapping.get('positiveMin', 0),
                     mapping.get('positiveMax', 0),
                     mapping.get('negativeMin', 0),
@@ -143,7 +147,7 @@ class HIDReader:
             elif mapping_type == 'bit-flags':
                 button_states = parse_bit_flags(
                     data_list,
-                    byte_index,
+                    first_byte_index,
                     mapping.get('buttonCount', 8)
                 )
                 result.update(button_states)

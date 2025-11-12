@@ -2,17 +2,22 @@
   "name": "XP-Pen Deco 640",
   "manufacturer": "XP-Pen",
   "model": "Deco 640",
-  "description": "XP-Pen Deco 640 graphics tablet with 8 express keys",
+  "description": "XP-Pen Deco 640 graphics tablet with 8 express keys (macOS with driver - WebHID/Browser)",
   "vendorId": "0x28bd",
-  "productId": "0x0914",
+  "productId": "0x2904",
   "deviceInfo": {
     "vendor_id": 10429,
-    "product_id": 2324,
-    "product": "Deco 640",
+    "product_id": 10500,
+    "product_string": "Deco 640",
+    "usage_page": 65290,
     "usage": 1,
-    "interfaces": [2]
+    "interfaces": [13, 65290, 1]
   },
   "reportId": 2,
+  "digitizerUsagePage": 65290,
+  "buttonInterfaceReportId": 6,
+  "stylusModeStatusByte": 160,
+  "excludedUsagePages": [],
   "capabilities": {
     "hasButtons": true,
     "buttonCount": 8,
@@ -26,7 +31,7 @@
   },
   "byteCodeMappings": {
     "status": {
-      "byteIndex": [1],
+      "byteIndex": [0],
       "type": "code",
       "values": {
         "192": {
@@ -60,36 +65,36 @@
       }
     },
     "x": {
-      "byteIndex": [2, 3],
+      "byteIndex": [1, 2],
       "max": 32000,
       "type": "multi-byte-range"
     },
     "y": {
-      "byteIndex": [4, 5],
+      "byteIndex": [3, 4],
       "max": 18000,
       "type": "multi-byte-range"
     },
     "pressure": {
-      "byteIndex": [6, 7],
+      "byteIndex": [5, 6],
       "max": 16383,
       "type": "multi-byte-range"
     },
     "tiltX": {
-      "byteIndex": [8],
+      "byteIndex": [7],
       "positiveMax": 60,
       "negativeMin": 256,
       "negativeMax": 196,
       "type": "bipolar-range"
     },
     "tiltY": {
-      "byteIndex": [9],
+      "byteIndex": [8],
       "positiveMax": 60,
       "negativeMin": 256,
       "negativeMax": 196,
       "type": "bipolar-range"
     },
     "tabletButtons": {
-      "byteIndex": [2],
+      "byteIndex": [1],
       "buttonCount": 8,
       "type": "bit-flags"
     }

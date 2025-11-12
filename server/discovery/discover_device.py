@@ -499,13 +499,13 @@ class DeviceDiscovery:
         coord_info = self._find_coordinates(movement)
         if coord_info:
             mappings.update(coord_info)
-            print(f"  ✓ Coordinates: X bytes {coord_info['x']['byteIndices']}, Y bytes {coord_info['y']['byteIndices']}")
+            print(f"  ✓ Coordinates: X bytes {coord_info['x']['byteIndex']}, Y bytes {coord_info['y']['byteIndex']}")
         
         # Find pressure bytes
         pressure_info = self._find_pressure(contact, pressure)
         if pressure_info:
             mappings['pressure'] = pressure_info
-            print(f"  ✓ Pressure: bytes {pressure_info['byteIndices']}, max {pressure_info['max']}")
+            print(f"  ✓ Pressure: bytes {pressure_info['byteIndex']}, max {pressure_info['max']}")
         
         # Find tilt bytes
         tilt_info = self._find_tilt(tilt_x, tilt_y)
@@ -717,12 +717,12 @@ class DeviceDiscovery:
             
             return {
                 'x': {
-                    'byteIndices': [x_byte, x_byte + 1],
+                    'byteIndex': [x_byte, x_byte + 1],
                     'max': x_max,
                     'type': 'multi-byte-range'
                 },
                 'y': {
-                    'byteIndices': [y_byte, y_byte + 1],
+                    'byteIndex': [y_byte, y_byte + 1],
                     'max': y_max,
                     'type': 'multi-byte-range'
                 }
@@ -800,7 +800,7 @@ class DeviceDiscovery:
         if best_candidate is not None:
             byte_idx, max_val = best_candidate
             return {
-                'byteIndices': [byte_idx, byte_idx + 1],
+                'byteIndex': [byte_idx, byte_idx + 1],
                 'max': max_val,
                 'type': 'multi-byte-range'
             }
@@ -946,17 +946,17 @@ class DeviceDiscovery:
                     }
                 },
                 "x": {
-                    "byteIndices": [2, 3],
+                    "byteIndex": [2, 3],
                     "max": 32000,
                     "type": "multi-byte-range"
                 },
                 "y": {
-                    "byteIndices": [4, 5],
+                    "byteIndex": [4, 5],
                     "max": 18000,
                     "type": "multi-byte-range"
                 },
                 "pressure": {
-                    "byteIndices": [6, 7],
+                    "byteIndex": [6, 7],
                     "max": 8191,
                     "type": "multi-byte-range"
                 },

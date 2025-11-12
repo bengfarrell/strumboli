@@ -1,0 +1,69 @@
+{
+  "startupConfiguration": {
+    "drawingTablet": "drivers/xp_pen_deco_640_osx_web.json",
+    "midiInputId": "Launchkey MK4 25 MIDI Out"
+  },
+  "noteDuration": {
+    "min": 0.15,
+    "max": 1.5,
+    "default": 1,
+    "multiplier": 1.0,
+    "curve": 1.0,
+    "spread": "central",
+    "control": "yaxis"
+  },
+  "pitchBend": {
+    "min": -1.0,
+    "max": 1.0,
+    "default": 0,
+    "spread": "direct",
+    "multiplier": 1.0,
+    "curve": 1.0,
+    "control": "tiltXY"
+  },
+  "noteVelocity": {
+    "min": 0,
+    "max": 127,
+    "spread": "direct",
+    "multiplier": 1.0,
+    "curve": 4.0,
+    "control": "pressure",
+    "default": 64
+  },
+  "strumming": {
+    "pluckVelocityScale": 4.0,
+    "pressureThreshold": 0.1,
+    "midiChannel": 10,
+    "initialNotes": [ "C4", "E4", "G4" ],
+    "upperNoteSpread": 3,
+    "lowerNoteSpread": 3
+  },
+  "noteRepeater": {
+    "active": false,
+    "pressureMultiplier": 1.0,
+    "frequencyMultiplier": 5.0
+  },
+  "stylusButtons": {
+    "active": true,
+    "primaryButtonAction": ["transpose", 12],
+    "secondaryButtonAction": ["toggle-repeater"]
+  },
+  "tabletButtons": "c-major-pop",
+  "strumRelease": {
+    "active": false,
+    "maxDuration": 0.25,
+    "velocityMultiplier": 2,
+    "midiNote": 38,
+    "midiChannel": 11
+  },
+  "logger": {
+    "enabled": true,
+    "alsoLogToConsole": false,
+    "categories": {
+      "MIDI": true,
+      "DeviceFinder": true,
+      "TabletController": true,
+      "HID": true
+    }
+  }
+}

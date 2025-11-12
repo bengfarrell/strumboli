@@ -611,12 +611,13 @@ def create_hid_data_handler(cfg: Config, midi: Union[Midi, JackMidi], socket_ser
             })
         
         # Create mapping of control names to input values
+        # Note: tiltX, tiltY, tiltXY range from -1 to 1, need to normalize to 0-1 for apply_effect
         control_inputs = {
             'yaxis': y_val,
             'pressure': pressure_val,
-            'tiltX': tilt_x_val,
-            'tiltY': tilt_y_val,
-            'tiltXY': tilt_xy_val
+            'tiltX': (tilt_x_val + 1.0) / 2.0,   # Normalize -1→1 to 0→1
+            'tiltY': (tilt_y_val + 1.0) / 2.0,   # Normalize -1→1 to 0→1
+            'tiltXY': (tilt_xy_val + 1.0) / 2.0  # Normalize -1→1 to 0→1
         }
         
         # Debug: Log pressure values when strumming (disabled for cleaner logs)

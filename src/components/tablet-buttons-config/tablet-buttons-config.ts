@@ -2,12 +2,14 @@ import { html, LitElement, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { styles } from './tablet-buttons-config.css.js';
 import type { ButtonAction, TabletButtonsConfig } from '../../types/config-types.js';
+import { CHORD_PROGRESSIONS, loadChordProgressions } from '../../utils/music/chord-progression-state.js';
 
 import '@spectrum-web-components/picker/sp-picker.js';
 import '@spectrum-web-components/menu/sp-menu-item.js';
 import '@spectrum-web-components/number-field/sp-number-field.js';
 import '@spectrum-web-components/field-label/sp-field-label.js';
 import '@spectrum-web-components/textfield/sp-textfield.js';
+import '@spectrum-web-components/switch/sp-switch.js';
 
 /**
  * Action definition with parameter requirements
@@ -36,7 +38,16 @@ export class TabletButtonsConfigComponent extends LitElement {
     static styles = styles;
 
     @property({ type: Object })
-    config?: TabletButtonsConfig;
+    config?: TabletButtonsConfig | string;
+
+    @state()
+    private useChordProgressionMode: boolean = false;
+
+    @state()
+    private selectedProgression: string = 'c-major-pop';
+
+    @state()
+    private progressionsLoaded: boolean = false;
 
     @state()
     private buttonStates: Record<string, ButtonState> = {
@@ -150,15 +161,30 @@ export class TabletButtonsConfigComponent extends LitElement {
         }
     ];
 
+    async connectedCallback() {
+        super.connectedCallback();
+        // Load chord progressions when component is connected
+        await loadChordProgressions();
+        this.progressionsLoaded = true;
+    }
+
     updated(changedProperties: PropertyValues) {
         super.updated(changedProperties);
         
         if (changedProperties.has('config') && this.config) {
-            // Parse all 8 button actions from config
-            for (let i = 1; i <= 8; i++) {
-                const buttonKey = String(i) as keyof TabletButtonsConfig;
-                const action = this.config[buttonKey];
-                this.parseActionFromConfig(action, buttonKey);
+            // Check if config is a string (chord progression name)
+            if (typeof this.config === 'string') {
+                this.useChordProgressionMode = true;
+                this.selectedProgression = this.config;
+            } else {
+                // Config is an object with individual button actions
+                this.useChordProgressionMode = false;
+                // Parse all 8 button actions from config
+                for (let i = 1; i <= 8; i++) {
+                    const buttonKey = String(i) as keyof TabletButtonsConfig;
+                    const action = this.config[buttonKey];
+                    this.parseActionFromConfig(action, buttonKey);
+                }
             }
         }
     }
@@ -253,6 +279,52 @@ export class TabletButtonsConfigComponent extends LitElement {
         }));
     }
 
+    private handleModeToggle(e: Event) {
+        const switchEl = e.target as any;
+        this.useChordProgressionMode = switchEl.checked;
+        
+        // Emit the appropriate config
+        if (this.useChordProgressionMode) {
+            // Switch to chord progression mode - emit progression name
+            this.dispatchEvent(new CustomEvent('config-change', {
+                detail: {
+                    tabletButtons: this.selectedProgression
+                },
+                bubbles: true,
+                composed: true
+            }));
+        } else {
+            // Switch to individual button mode - emit button configs
+            const buttonConfig: Partial<TabletButtonsConfig> = {};
+            for (let i = 1; i <= 8; i++) {
+                const key = String(i) as keyof TabletButtonsConfig;
+                const state = this.buttonStates[key];
+                buttonConfig[key] = this.buildActionDefinition(state.actionName, state.params);
+            }
+            this.dispatchEvent(new CustomEvent('config-change', {
+                detail: {
+                    tabletButtons: buttonConfig
+                },
+                bubbles: true,
+                composed: true
+            }));
+        }
+    }
+
+    private handleProgressionChange(e: Event) {
+        const picker = e.target as any;
+        this.selectedProgression = picker.value;
+        
+        // Emit change
+        this.dispatchEvent(new CustomEvent('config-change', {
+            detail: {
+                tabletButtons: this.selectedProgression
+            },
+            bubbles: true,
+            composed: true
+        }));
+    }
+
     private renderParamControls(buttonNumber: string) {
         const state = this.buttonStates[buttonNumber];
         if (!state) return html``;
@@ -327,16 +399,62 @@ export class TabletButtonsConfigComponent extends LitElement {
         `;
     }
 
+    private renderChordProgressionMode() {
+        // Wait for progressions to load
+        if (!this.progressionsLoaded) {
+            return html`<div class="chord-progression-config">Loading chord progressions...</div>`;
+        }
+        
+        // Get list of all available progressions
+        const progressionNames = Object.keys(CHORD_PROGRESSIONS);
+        
+        return html`
+            <div class="chord-progression-config">
+                <sp-field-label size="m">Chord Progression</sp-field-label>
+                <sp-picker
+                    size="m"
+                    .value="${this.selectedProgression}"
+                    @change="${this.handleProgressionChange}">
+                    ${progressionNames.map(name => html`
+                        <sp-menu-item value="${name}">${name}</sp-menu-item>
+                    `)}
+                </sp-picker>
+                <p class="helper-text">
+                    In chord progression mode, each button will be mapped to a chord in the progression.
+                    Buttons 1-8 will cycle through the chords in the selected progression.
+                </p>
+            </div>
+        `;
+    }
+
+    private renderIndividualButtonMode() {
+        return html`
+            <div class="button-grid">
+                ${['1', '2', '3', '4', '5', '6', '7', '8'].map(num => 
+                    this.renderButton(num)
+                )}
+            </div>
+        `;
+    }
+
     render() {
         if (!this.config) return html``;
 
         return html`
             <div class="config-section">
-                <div class="button-grid">
-                    ${['1', '2', '3', '4', '5', '6', '7', '8'].map(num => 
-                        this.renderButton(num)
-                    )}
+                <div class="mode-toggle">
+                    <sp-field-label size="m">Chord Progression Mode</sp-field-label>
+                    <sp-switch
+                        ?checked="${this.useChordProgressionMode}"
+                        @change="${this.handleModeToggle}">
+                        ${this.useChordProgressionMode ? 'On' : 'Off'}
+                    </sp-switch>
                 </div>
+                
+                ${this.useChordProgressionMode 
+                    ? this.renderChordProgressionMode()
+                    : this.renderIndividualButtonMode()
+                }
             </div>
         `;
     }

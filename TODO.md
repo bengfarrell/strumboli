@@ -1,0 +1,4 @@
+- make web only version work
+- create driver file for Zynthian for driver-loaded devices (key input won't work here, which means the buttons won't work without a driver)
+- host web only version and find out if websocket version can work from host rather than packaging it and including http server
+- create web based device detector - possibly have a flavor with websockets to run from any device

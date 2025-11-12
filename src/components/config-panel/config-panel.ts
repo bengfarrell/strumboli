@@ -1,7 +1,7 @@
 import { html, LitElement, TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { styles } from './config-panel.css.js';
-import { ControlSchema, NumberControlSchema, PickerControlSchema } from '../../panel-schemas';
+import { ControlSchema, NumberControlSchema, PickerControlSchema } from '../../utils/panels/panel-schemas';
 
 import '@spectrum-web-components/number-field/sp-number-field.js';
 import '@spectrum-web-components/field-label/sp-field-label.js';

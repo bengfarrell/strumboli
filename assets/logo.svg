@@ -1,0 +1,17 @@
+<svg class="app-logo" width="80" height="80" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!--?lit$912723022$--><!--?lit$912723022$--><!---->
+    <line stroke-linecap="butt" x1="10" y1="23" x2="90" y2="23" stroke="#ff6b6b" stroke-width="5"></line>
+    <!----><!---->
+    <line stroke-linecap="butt" x1="10" y1="41" x2="90" y2="41" stroke="#ffd93d" stroke-width="5"></line>
+    <!----><!---->
+    <line stroke-linecap="butt" x1="10" y1="59" x2="90" y2="59" stroke="#6bcf7f" stroke-width="5"></line>
+    <!----><!---->
+    <line stroke-linecap="butt" x1="10" y1="77" x2="90" y2="77" stroke="#4dabf7" stroke-width="5"></line>
+    <!----><!---->
+    <line stroke-linecap="butt" x1="10" y1="10" x2="90" y2="10" stroke="#adb5bd" stroke-width="3"></line>
+    <!----><!---->
+    <line stroke-linecap="butt" x1="10" y1="10" x2="10" y2="90" stroke="#adb5bd" stroke-width="3"></line>
+    <!----><!---->
+    <line stroke-linecap="butt" x1="10" y1="90" x2="90" y2="90" stroke="#adb5bd" stroke-width="3"></line>
+    <!----><!--?-->
+</svg>

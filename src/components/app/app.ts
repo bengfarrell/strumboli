@@ -15,7 +15,7 @@ import '@spectrum-web-components/theme/theme-dark.js';
 
 import '../piano/piano.js';
 import { PianoElement } from '../piano/piano.js';
-import { NoteObject } from '../../utils/note.js';
+import { NoteObject } from '../../utils/music/note.js';
 import '../dashboard-panel/dashboard-panel.js';
 import '../tablet-visualizer/tablet-visualizer.js';
 import '../curve-visualizer/curve-visualizer.js';
@@ -23,9 +23,10 @@ import '../config-panel/config-panel.js';
 import '../stylus-buttons-config/stylus-buttons-config.js';
 import '../tablet-buttons-config/tablet-buttons-config.js';
 import '../websocket-connection/websocket-connection.js';
-import { PANEL_SCHEMAS } from '../../panel-schemas.js';
 import { sharedSettings, sharedTabletInteraction } from '../../controllers/index.js';
 import type { ConnectionStatus } from '../websocket-connection/websocket-connection.js';
+import { createPanelManager, PanelManager } from '../../utils/panels/panel-manager.js';
+import { PanelFactoryContext } from '../../utils/panels/panel-factory.js';
 
 @customElement('strummer-app')
 export class StrummerApp extends LitElement {
@@ -90,58 +91,23 @@ export class StrummerApp extends LitElement {
     @state()
     protected hasReceivedDeviceStatus: boolean = false;
 
+    // Panel manager for socket mode
+    private panelManager: PanelManager;
+    private panelManagerUnsubscribe?: () => void;
+
     constructor() {
         super();
         // Register this component with the settings controller
         sharedSettings.addHost(this);
+        
+        // Create panel manager for socket mode
+        this.panelManager = createPanelManager('socket');
+        
+        // Subscribe to panel manager state changes
+        this.panelManagerUnsubscribe = this.panelManager.subscribe(() => {
+            this.requestUpdate();
+        });
     }
-
-    @state()
-    protected panelOrder: string[] = [
-        // System panels
-        'websocket-connection',
-        'panel-controls',
-        // Visualizations
-        'drawing-tablet',
-        'pen-tilt',
-        'keyboard',
-        // Inputs
-        'note-duration',
-        'pitch-bend',
-        'note-velocity',
-        // Buttons
-        'stylus-buttons',
-        'tablet-buttons',
-        // Misc Features
-        'strumming',
-        'note-repeater',
-        'transpose',
-        'strum-release'
-    ];
-
-    @state()
-    protected panelVisibility: Record<string, boolean> = {
-        'panel-controls': true,
-        'websocket-connection': true,
-        'drawing-tablet': true,
-        'pen-tilt': true,
-        'keyboard': true,
-        'note-duration': true,
-        'pitch-bend': true,
-        'note-velocity': true,
-        'strumming': true,
-        'note-repeater': true,
-        'transpose': true,
-        'stylus-buttons': true,
-        'tablet-buttons': true,
-        'strum-release': true
-    };
-
-    @state()
-    protected panelMinimized: Record<string, boolean> = {
-        'panel-controls': true,
-        'websocket-connection': false
-    };
 
     async connectedCallback() {
         super.connectedCallback();
@@ -160,6 +126,20 @@ export class StrummerApp extends LitElement {
             this.connectWebSocket('ws://localhost:8080');
         } else {
             console.log('⏸️  Waiting for user to connect (socket mode)');
+        }
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        
+        // Unsubscribe from panel manager
+        if (this.panelManagerUnsubscribe) {
+            this.panelManagerUnsubscribe();
+        }
+        
+        // Close WebSocket if open
+        if (this.webSocket) {
+            this.webSocket.close();
         }
     }
 
@@ -420,244 +400,33 @@ export class StrummerApp extends LitElement {
         this.requestUpdate();
     }
 
-    handlePanelDrop(e: CustomEvent) {
-        const { draggedPanelId, targetPanelId } = e.detail;
-        
-        const draggedIndex = this.panelOrder.indexOf(draggedPanelId);
-        const targetIndex = this.panelOrder.indexOf(targetPanelId);
-        
-        if (draggedIndex === -1 || targetIndex === -1) return;
-        
-        // Create new array with swapped positions
-        const newOrder = [...this.panelOrder];
-        newOrder.splice(draggedIndex, 1);
-        newOrder.splice(targetIndex, 0, draggedPanelId);
-        
-        this.panelOrder = newOrder;
-    }
 
-    handlePanelClose(e: CustomEvent) {
-        const panel = e.target as any;
-        const panelId = panel.panelId;
-        
-        if (panelId) {
-            this.panelVisibility = {
-                ...this.panelVisibility,
-                [panelId]: false
-            };
-        }
-    }
-
-    togglePanelVisibility(panelId: string) {
-        this.panelVisibility = {
-            ...this.panelVisibility,
-            [panelId]: !this.panelVisibility[panelId]
+    /**
+     * Build context for panel rendering
+     */
+    private buildPanelContext(): PanelFactoryContext {
+        return {
+            settings: sharedSettings.state,
+            socketMode: this.socketMode,
+            connectionStatus: this.connectionStatus,
+            connectionError: this.connectionError,
+            deviceConnected: this.tabletConnected,
+            deviceInfo: this.tabletDeviceInfo,
+            stringCount: this.stringCount,
+            notes: this.notes,
+            lastPluckedString: this.lastPluckedString,
+            pressedButtons: this.pressedButtons,
+            tabletData: this.tabletData,
+            noteDuration: sharedSettings.state.noteDuration,
+            pitchBend: sharedSettings.state.pitchBend,
+            noteVelocity: sharedSettings.state.noteVelocity,
+            panelVisibility: this.panelManager.getVisibility(),
+            panelCategories: this.panelManager.categories,
+            handleConfigChange: (e: CustomEvent) => this.handleConfigChange(e),
+            togglePanelVisibility: (id: string) => this.panelManager.toggleVisibility(id),
+            connectWebSocket: (url: string) => this.connectWebSocket(url),
+            disconnectWebSocket: () => this.disconnectWebSocket()
         };
-    }
-
-    /**
-     * Renders a custom component based on schema definition
-     */
-    private renderCustomComponent(panelId: string) {
-        const schema = PANEL_SCHEMAS[panelId];
-        if (!schema.customComponent) return html``;
-        
-        const { type, props } = schema.customComponent;
-        const settings = sharedSettings.state;
-        
-        switch (type) {
-            case 'tablet-visualizer':
-                return html`
-                <tablet-visualizer
-                        mode="${props.mode}"
-                    .socketMode=${this.socketMode}
-                    .stringCount=${this.stringCount}
-                    .notes=${this.notes}
-                    .externalLastPluckedString=${this.lastPluckedString}
-                    .externalPressedButtons=${this.pressedButtons}
-                    .externalTabletData=${this.tabletData}
-                    .tabletConnected=${this.tabletConnected}
-                    .tabletDeviceInfo=${this.tabletDeviceInfo}
-                    .noteDuration=${settings.noteDuration}
-                    .pitchBend=${settings.pitchBend}
-                    .noteVelocity=${settings.noteVelocity}
-                    @config-change=${this.handleConfigChange}>
-                </tablet-visualizer>
-                `;
-            
-            case 'curve-visualizer':
-                const config = schema.configKey ? (settings as any)[schema.configKey] : null;
-                return html`
-                    <curve-visualizer
-                        .label="${props.label}"
-                        .parameterKey="${props.parameterKey}"
-                        .control="${(config as any)?.control}"
-                        .outputLabel="${props.outputLabel}"
-                        .config="${config}"
-                        .color="${props.color}"
-                        @config-change=${this.handleConfigChange}
-                        @control-change=${this.handleConfigChange}>
-                    </curve-visualizer>
-                `;
-            
-            case 'piano-keys':
-                return html`
-                    <piano-keys 
-                        layout="${props.layout}" 
-                        keys=${props.keys}>
-                    </piano-keys>
-                `;
-            
-            case 'stylus-buttons-config':
-                const stylusConfig = settings.stylusButtons;
-                return html`
-                    <stylus-buttons-config
-                        .config="${stylusConfig}"
-                        @config-change=${this.handleConfigChange}>
-                    </stylus-buttons-config>
-                `;
-            
-            case 'tablet-buttons-config':
-                const tabletButtonsConfig = settings.tabletButtons;
-                return html`
-                    <tablet-buttons-config
-                        .config="${tabletButtonsConfig}"
-                        @config-change=${this.handleConfigChange}>
-                    </tablet-buttons-config>
-                `;
-            
-            case 'websocket-connection':
-                return html`
-                    <websocket-connection
-                        .status="${this.connectionStatus}"
-                        .errorMessage="${this.connectionError}"
-                        .tabletConnected=${this.tabletConnected}
-                        .tabletDeviceInfo=${this.tabletDeviceInfo}
-                        .hasReceivedDeviceStatus=${this.hasReceivedDeviceStatus}
-                        @connect="${this.handleConnect}"
-                        @disconnect="${this.handleDisconnect}">
-                    </websocket-connection>
-                `;
-            
-            case 'panel-controls':
-                return html`
-                    <div class="panel-controls-content">
-                        ${Object.entries(this.panelCategories).map(([category, panelIds]) => html`
-                            <div class="panel-category">
-                                <h4 class="category-title">${category}</h4>
-                                <div class="category-items">
-                                    ${panelIds.map(panelId => {
-                                        const schema = PANEL_SCHEMAS[panelId];
-                                        const isVisible = this.panelVisibility[panelId];
-                                        
-                                        return html`
-                                            <button 
-                                                class="panel-control-item ${isVisible ? 'visible' : 'hidden'}"
-                                                @click=${() => this.togglePanelVisibility(panelId)}
-                                                title="${isVisible ? 'Hide' : 'Show'} ${schema.title}">
-                                                <span class="item-icon">${isVisible ? '👁️' : '👁️‍🗨️'}</span>
-                                                <span class="item-label">${schema.title}</span>
-                                            </button>
-                                        `;
-                                    })}
-                                </div>
-                            </div>
-                        `)}
-                    </div>
-                `;
-            
-            default:
-                return html`<div>Unknown component: ${type}</div>`;
-        }
-    }
-
-    /**
-     * Get connection status emoji and text for the websocket panel
-     */
-    private getConnectionStatusDisplay() {
-        switch (this.connectionStatus) {
-            case 'connected':
-                return '🟢 Connected';
-            case 'connecting':
-                return '🟡 Connecting...';
-            case 'error':
-                return '🔴 Error';
-            case 'disconnected':
-            default:
-                return '⚪ Disconnected';
-        }
-    }
-
-    /**
-     * Renders a single panel based on schema
-     */
-    private renderPanel(panelId: string) {
-        const schema = PANEL_SCHEMAS[panelId];
-        if (!schema) return html``;
-        
-        // Check visibility
-        if (!this.panelVisibility[panelId]) {
-            return html``;
-        }
-        
-        // Get config from the settings controller
-        const config = schema.configKey ? (sharedSettings.state as any)[schema.configKey] : null;
-        const hasActive = schema.hasActiveControl && config && typeof config === 'object' && 'active' in config;
-        const isActive = hasActive ? (config as any).active : true;
-        
-        // Determine panel title (add status for websocket connection and tablet)
-        let panelTitle = schema.title;
-        if (panelId === 'websocket-connection') {
-            const connectionStatus = this.getConnectionStatusDisplay();
-            // Only show tablet status if we've actually received device status from server
-            if (this.hasReceivedDeviceStatus) {
-                const tabletStatus = this.tabletConnected 
-                    ? `🟢 ${this.tabletDeviceInfo?.name || 'Tablet'}` 
-                    : '🔴 No Tablet';
-                panelTitle = `${schema.title} - ${connectionStatus} | ${tabletStatus}`;
-            } else {
-                panelTitle = `${schema.title} - ${connectionStatus}`;
-            }
-        }
-        
-        // Determine if panel is closable (panel-controls and websocket-connection are not)
-        const isClosable = panelId !== 'panel-controls' && panelId !== 'websocket-connection';
-        
-        // Check if panel should be minimized by default
-        const isMinimized = this.panelMinimized[panelId] || false;
-        
-        return html`
-            <dashboard-panel 
-                panelId="${schema.id}"
-                title="${panelTitle}"
-                size="${schema.size}"
-                ?hasActiveControl="${schema.hasActiveControl}"
-                .active="${isActive}"
-                ?closable="${isClosable}"
-                ?minimized="${isMinimized}"
-                draggable
-                @panel-drop=${this.handlePanelDrop}
-                @panel-close=${this.handlePanelClose}
-                @active-change="${hasActive ? (e: CustomEvent) => 
-                    this.handleConfigChange(new CustomEvent('config-change', { 
-                        detail: { [`${schema.configKey}.active`]: e.detail.active } 
-                    })) : undefined}">
-                
-                ${schema.isCustom ? html`
-                    <config-panel .isCustom="${true}">
-                        ${this.renderCustomComponent(panelId)}
-                    </config-panel>
-                ` : html`
-                    <config-panel
-                        .controls="${schema.controls}"
-                        .config="${config}"
-                        .configKey="${schema.configKey || ''}"
-                        ?disabled="${!isActive}"
-                        @config-change=${this.handleConfigChange}>
-                    </config-panel>
-                `}
-            </dashboard-panel>
-        `;
     }
 
     /**
@@ -768,37 +537,15 @@ export class StrummerApp extends LitElement {
         return svg`${lines}`;
     }
 
-    /**
-     * Data-driven panel rendering - all panels rendered from schema
-     */
-    getPanels() {
-        const panels: Record<string, any> = {};
-        
-        // Generate all panels from schema - fully data-driven
-        this.panelOrder.forEach(panelId => {
-            panels[panelId] = this.renderPanel(panelId);
-        });
-        
-        return panels;
-    }
-
-    /**
-     * Panel categories for organizing the control panel
-     */
-    private panelCategories = {
-        'Visualizations': ['drawing-tablet', 'pen-tilt', 'keyboard'],
-        'Inputs': ['note-duration', 'pitch-bend', 'note-velocity'],
-        'Buttons': ['stylus-buttons', 'tablet-buttons'],
-        'Misc Features': ['strumming', 'note-repeater', 'transpose', 'strum-release']
-    };
-
     render() {
         console.log('🎨 Render called - socketMode:', this.socketMode, 'connectionStatus:', this.connectionStatus);
+        
+        const context = this.buildPanelContext();
         
         // In socket mode, show only connection panel if not connected
         if (this.socketMode && this.connectionStatus !== 'connected') {
             console.log('🔌 Showing connection UI');
-            const connectionPanel = this.renderPanel('websocket-connection');
+            const connectionPanel = this.panelManager.renderPanel('websocket-connection', context);
             
             return html`<sp-theme system="spectrum" color="dark" scale="medium">
                 ${this.renderHeader()}
@@ -810,19 +557,12 @@ export class StrummerApp extends LitElement {
 
         // Normal mode or connected - show the full dashboard
         console.log('📊 Showing dashboard');
-        const panels = this.getPanels();
         
         return html`<sp-theme system="spectrum" color="dark" scale="medium">
             ${this.renderHeader()}
 
             <div class="dashboard-grid">
-                ${this.panelOrder.map(panelId => {
-                    // Skip websocket-connection panel in non-socket mode
-                    if (panelId === 'websocket-connection' && !this.socketMode) {
-                        return '';
-                    }
-                    return panels[panelId];
-                })}
+                ${this.panelManager.renderPanels(context)}
             </div>
         </sp-theme>`
     }

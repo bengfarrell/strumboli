@@ -9,6 +9,34 @@ export const styles = css`
     .config-section {
         display: flex;
         flex-direction: column;
+        gap: 24px;
+    }
+
+    .mode-toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .chord-progression-config {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .helper-text {
+        margin: 8px 0 0 0;
+        font-size: 0.85em;
+        color: rgba(255, 255, 255, 0.6);
+        line-height: 1.5;
     }
 
     .button-grid {
